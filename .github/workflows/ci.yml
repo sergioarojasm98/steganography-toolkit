@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Ruff lint
+        run: ruff check .
+      - name: Ruff format check
+        run: ruff format --check .
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run pytest
+        run: pytest -v
+        env:
+          # Make sure no test ever picks up real Telegram credentials.
+          TELEGRAM_BOT_TOKEN: ""
+          TELEGRAM_CHAT_ID: ""
+
+  smoke-cli:
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install runtime deps
+        run: pip install -r requirements.txt
+      - name: Generate a sample image
+        run: |
+          python - <<'PY'
+          import numpy as np, cv2
+          rng = np.random.default_rng(0)
+          img = rng.integers(50, 200, (256, 256, 3), dtype=np.uint8)
+          cv2.imwrite("sample.png", img)
+          PY
+      - name: LSB end-to-end CLI smoke test
+        run: |
+          python lsb/lsb.py --input sample.png --output stego_lsb.png --message "CI smoke test"
+          test "$(python lsb/decode_lsb.py --input stego_lsb.png | tail -1)" = "CI smoke test"
+      - name: DCT end-to-end CLI smoke test
+        run: |
+          python dct/dct.py --input sample.png --output stego_dct.png --message "CI smoke test"
+          test "$(python dct/decode_dct.py --input stego_dct.png --length 13 | tail -1)" = "CI smoke test"
+      - name: DWT end-to-end CLI smoke test
+        run: |
+          python dwt/dwt.py --input sample.png --output stego_dwt.png --message "CI smoke test"
+          test "$(python dwt/decode_dwt.py --input stego_dwt.png --length 13 | tail -1 | sed 's/.*: //')" = "CI smoke test"

@@ -1,0 +1,17 @@
+# Runtime dependencies for the steganography toolkit.
+
+# Image I/O and color-space conversion
+opencv-python>=4.5.0
+Pillow>=9.0.0
+
+# Numerical operations on pixel/coefficient arrays
+numpy>=1.21.0
+
+# Discrete Wavelet Transform (Haar) for the DWT method
+PyWavelets>=1.3.0
+
+# HTTP requests for optional Telegram notifications
+requests>=2.25.0
+
+# Optional: load TELEGRAM_* env vars from a .env file
+python-dotenv>=0.19.0
